@@ -8,10 +8,10 @@
 
 **PAAC** (Privacy-Aware Agentic Device-Cloud Collaboration) is a decoupled framework that aligns role decomposition with the device–cloud trust boundary, following a **cloud-reason-and-plan, device-execute-and-judge** paradigm. The cloud agent reasons and plans over *sanitized* representations; the on-device agent runs **Privacy Sanitization**, **Judge**, and **Final Answer Generation**. Per-step on-device distillation keeps both agents' contexts bounded across agentic rounds, and **consensus termination** requires both sides to agree before the loop ends.
 
-For sanitization, PAAC reframes the on-device LLM as a **proposer** of `(span, semantic-type, sanitized-text)` candidates, with an alignment check gating each commit and a deterministic, append-only **regex registry** carrying all substitution and reversal — so cloud-side actions are desanitized and dispatched to tools without a second LLM pass.
+For sanitization, PAAC reframes the on-device LLM as a **proposer** that nominates each sensitive span together with its semantic type and a sanitized replacement. An alignment check gates every commit, and a deterministic, append-only **regex registry** carries all substitution and reversal, so cloud-side actions are desanitized and dispatched to tools without a second LLM pass.
 
 <div align="center">
-    <img src="figures/overview.png" alt="overview" style="width:75%;"/>
+    <img src="figures/overview.png" alt="overview" style="width:50%;"/>
 </div>
 
 
