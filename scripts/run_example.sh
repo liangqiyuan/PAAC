@@ -8,10 +8,10 @@ if [[ -z "${GEMINI_API_KEY:-}" ]]; then
     exit 1
 fi
 
-# Optional: comma-separated list of NVIDIA NIM keys for hosted local models.
+# Optional: comma-separated list of NVIDIA NIM keys for hosted on-device models.
 # export API_KEYS="key1,key2,key3"
 
-# Optional: vLLM serving port for self-hosted local models.
+# Optional: vLLM serving port for self-hosted on-device models.
 export VLLM_PORT="${VLLM_PORT:-8000}"
 
 DATASET="${DATASET:-gaia}"
@@ -19,7 +19,7 @@ PRIVACY_LEVEL="${PRIVACY_LEVEL:-3}"
 STRATEGY="${STRATEGY:-parallel_plan_and_solve}"
 DECISION="${DECISION:-joint}"
 TIER="${TIER:-base}"
-LOCAL_MODEL="${LOCAL_MODEL:-Qwen/Qwen3-4B-Instruct-2507}"
+DEVICE_MODEL="${DEVICE_MODEL:-Qwen/Qwen3-4B-Instruct-2507}"
 CLOUD_MODEL="${CLOUD_MODEL:-gemini-3-flash-preview}"
 NUM_SAMPLES="${NUM_SAMPLES:-20}"
 WORKERS="${WORKERS:-20}"
@@ -31,7 +31,7 @@ python src/main.py \
     --strategy "${STRATEGY}" \
     --decision_making "${DECISION}" \
     --tier "${TIER}" \
-    --local_model "${LOCAL_MODEL}" \
+    --device_model "${DEVICE_MODEL}" \
     --cloud_model "${CLOUD_MODEL}" \
     --num_samples "${NUM_SAMPLES}" \
     --workers "${WORKERS}" \

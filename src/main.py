@@ -231,7 +231,7 @@ class PrivacySanitizer:
     
     def call_sanitizer_llm(self, args, content):
         prompt = prompts.get_sanitizer_prompt(content, self.checked_categories, self.privacy_definitions)
-        response = call_llm(args, prompt, role="local", reflection_fn=lambda x: prompts.get_reflection_sanitizer_prompt(x, content, self.checked_categories, self.privacy_definitions))
+        response = call_llm(args, prompt, role="device", reflection_fn=lambda x: prompts.get_reflection_sanitizer_prompt(x, content, self.checked_categories, self.privacy_definitions))
         if response is None:
             response = {}
             
@@ -458,16 +458,16 @@ class TaskContext:
             self.private_mapping.update(new_mappings)
     
     def add_step(self, step_num, cloud_output=None, cloud_output_sanitized=None,
-                local_execution=None, local_execution_sanitized=None,
-                local_judgment=None, local_judgment_sanitized=None):
+                device_execution=None, device_execution_sanitized=None,
+                device_judgment=None, device_judgment_sanitized=None):
         step_record = {
             "step": step_num,
             "cloud_output": cloud_output,
             "cloud_output_sanitized": cloud_output_sanitized,
-            "local_execution": local_execution,
-            "local_execution_sanitized": local_execution_sanitized,
-            "local_judgment": local_judgment,
-            "local_judgment_sanitized": local_judgment_sanitized,
+            "device_execution": device_execution,
+            "device_execution_sanitized": device_execution_sanitized,
+            "device_judgment": device_judgment,
+            "device_judgment_sanitized": device_judgment_sanitized,
         }
         self.step_history.append(step_record)
         return step_record
@@ -485,8 +485,8 @@ class TaskContext:
             entry = {
                 "step": step["step"],
                 "cloud_output": step.get("cloud_output"),
-                "local_execution": step.get("local_execution"),
-                "local_judgment": step.get("local_judgment"),
+                "device_execution": step.get("device_execution"),
+                "device_judgment": step.get("device_judgment"),
             }
             real_history.append(entry)
         return real_history
@@ -496,7 +496,7 @@ class TaskContext:
         for step in self.step_history:
             entry = {
                 "step": step["step"],
-                "sanitized_findings": step.get("local_judgment_sanitized", {}).get("key_findings", ""),
+                "sanitized_findings": step.get("device_judgment_sanitized", {}).get("key_findings", ""),
             }
             sanitized_findings_history.append(entry)
         return sanitized_findings_history
@@ -556,15 +556,15 @@ class AgentStrategy:
     def sanitize_question(self):
         if "user_scenario" in self.task_data:
             user_scenario = self.task_data["user_scenario"]
-            sanitized_scenario = self.local_sanitize(user_scenario)
+            sanitized_scenario = self.device_sanitize(user_scenario)
             self.question = self.original_question.replace(user_scenario, sanitized_scenario)
         else:
-            self.question = self.local_sanitize(self.original_question)
+            self.question = self.device_sanitize(self.original_question)
 
         self.ctx.update_sanitized_question(self.question)
 
     def _format_current_step(self, current_step):
-        executions = build_execution_summaries(current_step.get("local_execution", []))
+        executions = build_execution_summaries(current_step.get("device_execution", []))
         formatted = {
             "step": current_step.get("step", 0),
             "executions": executions,
@@ -580,11 +580,11 @@ class AgentStrategy:
                 return False
         return True
         
-    def tau2_local_judgment(self, current_step):
+    def tau2_device_judgment(self, current_step):
         feedback_parts = []
         key_findings = []
 
-        for i, log in enumerate(current_step["local_execution"]):
+        for i, log in enumerate(current_step["device_execution"]):
             tool = log["action"]["tool"]
             result = log["result"]
             
@@ -624,21 +624,21 @@ class AgentStrategy:
             "token_usage": {"input_tokens": 0, "output_tokens": 0}
         }
 
-    def local_judgment(self, question, current_step):
+    def device_judgment(self, question, current_step):
         step_info = self._format_current_step(current_step)
 
         if hasattr(self.ctx, "choices") and self.ctx.choices:
             question = f"{question}\nChoices:\n{self.ctx.choices}"
 
         disable_ready = (self.args.decision_making == "cloud")
-        prompt = prompts.get_local_judge_react_prompt(question=question, step_info=step_info, disable_ready=disable_ready)
+        prompt = prompts.get_device_judge_react_prompt(question=question, step_info=step_info, disable_ready=disable_ready)
         reflection_fn = (
             (lambda x: prompts.get_reflection_judge_prompt(
                 x, question, step_info, extra_instructions=self._judge_extra_instructions
             ))
             if self.args.tier == "pro" else None
         )
-        result = call_llm(self.args, prompt, role="local", reflection_fn=reflection_fn)
+        result = call_llm(self.args, prompt, role="device", reflection_fn=reflection_fn)
         if result is None:
             result = {}
 
@@ -652,7 +652,7 @@ class AgentStrategy:
 
         return result
 
-    def local_sanitize(self, content, is_data_retrieval_extract=False):
+    def device_sanitize(self, content, is_data_retrieval_extract=False):
         is_tau2_privacy_1 = self.args.dataset.startswith("tau2_") and self.sanitizer.privacy_level == 1
         if is_data_retrieval_extract or is_tau2_privacy_1:
             sanitized = self.sanitizer.sanitize(content)
@@ -664,7 +664,7 @@ class AgentStrategy:
     def run(self):
         self.sanitize_question()
 
-        local_reasoning = None
+        device_reasoning = None
         previous_reasoning = None
         final_prediction = ""
         is_correct = False
@@ -673,7 +673,7 @@ class AgentStrategy:
         for step in range(self.args.max_steps):
             # --- Cloud reasoning ---
             try:
-                reasoning, actions = self.propose_actions(local_reasoning, previous_reasoning, step=step)
+                reasoning, actions = self.propose_actions(device_reasoning, previous_reasoning, step=step)
                 previous_reasoning = reasoning
 
                 if isinstance(reasoning, dict) and "plan" in reasoning:
@@ -718,32 +718,32 @@ class AgentStrategy:
             if self.ctx.step_history:
                 cloud_input_str += "\nFeedback History:\n"
                 for past_step in self.ctx.step_history:
-                    fb = past_step["local_judgment_sanitized"]["feedback"]
+                    fb = past_step["device_judgment_sanitized"]["feedback"]
                     cloud_input_str += f"Step {past_step['step']}: {fb}\n"
 
             history_entry = {
                 "step": step,
                 "cloud_input": cloud_input_str.strip(),
                 "cloud_output": cloud_output,
-                "local_execution": step_results,
+                "device_execution": step_results,
             }
             self.real_history.append(history_entry)
 
-            # --- Local judgment over the current step only ---
+            # --- Device judgment over the current step only ---
             is_tau2_user_data_retrieval = self._is_tau2_user_data_retrieval(step_results)
             try:
                 if is_tau2_user_data_retrieval:
-                    judgment = self.tau2_local_judgment(history_entry)
+                    judgment = self.tau2_device_judgment(history_entry)
                 else:
-                    judgment = self.local_judgment(self.original_question, history_entry)
-                history_entry["local_judgment"] = judgment
+                    judgment = self.device_judgment(self.original_question, history_entry)
+                history_entry["device_judgment"] = judgment
             except Exception as e:
                 judgment = {
                     "ready_for_final_answer": False,
-                    "feedback": f"System Error in Local Judgment: {str(e)}",
-                    "key_findings": "System Error: Local Judgment Failed",
+                    "feedback": f"System Error in Device Judgment: {str(e)}",
+                    "key_findings": "System Error: Device Judgment Failed",
                 }
-                history_entry["local_judgment"] = judgment
+                history_entry["device_judgment"] = judgment
 
             # --- Sanitise findings/feedback for the next cloud round ---
             _kf = judgment.get("key_findings", "")
@@ -752,9 +752,9 @@ class AgentStrategy:
             _fb = judgment.get("feedback", "")
             if isinstance(_fb, list):
                 _fb = "\n".join(str(x) for x in _fb)
-            sanitized_findings = self.local_sanitize(_kf, is_data_retrieval_extract=is_tau2_user_data_retrieval)
-            sanitized_feedback = self.local_sanitize(_fb, is_data_retrieval_extract=is_tau2_user_data_retrieval)
-            local_reasoning = {"feedback": sanitized_feedback, "key_findings": sanitized_findings}
+            sanitized_findings = self.device_sanitize(_kf, is_data_retrieval_extract=is_tau2_user_data_retrieval)
+            sanitized_feedback = self.device_sanitize(_fb, is_data_retrieval_extract=is_tau2_user_data_retrieval)
+            device_reasoning = {"feedback": sanitized_feedback, "key_findings": sanitized_findings}
 
             self.sanitizer.step_token_usage = {"input_tokens": 0, "output_tokens": 0}
 
@@ -762,10 +762,10 @@ class AgentStrategy:
                 step_num=step,
                 cloud_output=cloud_output,
                 cloud_output_sanitized=sanitized_actions,
-                local_execution=step_results,
-                local_execution_sanitized=None,
-                local_judgment=judgment,
-                local_judgment_sanitized={"feedback": sanitized_feedback, "key_findings": sanitized_findings},
+                device_execution=step_results,
+                device_execution_sanitized=None,
+                device_judgment=judgment,
+                device_judgment_sanitized={"feedback": sanitized_feedback, "key_findings": sanitized_findings},
             )
             self.ctx.private_mapping = self.sanitizer.get_mapping()
 
@@ -790,7 +790,7 @@ class AgentStrategy:
                 should_terminate = True
             elif self.args.decision_making == "cloud":
                 should_terminate = has_final_tool
-            elif self.args.decision_making == "local":
+            elif self.args.decision_making == "device":
                 should_terminate = is_ready
             elif self.args.decision_making == "joint":
                 should_terminate = is_ready and has_final_tool
@@ -865,7 +865,7 @@ IMPORTANT: In Python code, always open the file using the absolute path above. D
             if "args" in tool and tool["args"]:
                 entry["args"] = tool["args"]
             tools.append(entry)
-        if self.args.decision_making == "local":
+        if self.args.decision_making == "device":
             tools = [t for t in tools if t["name"] != "final_answer"]
         return tools
 
@@ -892,8 +892,8 @@ class ReActStrategy(AgentStrategy):
             if not action and "actions" in cloud_output and cloud_output["actions"]:
                 action = cloud_output["actions"][0]
 
-            local_judg_san = step_record.get("local_judgment_sanitized", {})
-            obs = str(local_judg_san.get("key_findings", ""))
+            device_judg_san = step_record.get("device_judgment_sanitized", {})
+            obs = str(device_judg_san.get("key_findings", ""))
 
             words = obs.split()
             if len(words) > max_words:
@@ -903,7 +903,7 @@ class ReActStrategy(AgentStrategy):
 
         return json.dumps(compact, indent=4, ensure_ascii=False)
     
-    def cloud_reasoning(self, local_reasoning=None, step=None):
+    def cloud_reasoning(self, device_reasoning=None, step=None):
         prompt = prompts.get_cloud_react_prompt(
             question=self.question,
             step=step+1,
@@ -911,15 +911,15 @@ class ReActStrategy(AgentStrategy):
             file_context=self.get_file_context(),
             tools_json=json.dumps(self._get_compact_tools(), indent=4, ensure_ascii=False),
             history_json=self._get_compact_history(),
-            feedback=local_reasoning if local_reasoning else "None",
+            feedback=device_reasoning if device_reasoning else "None",
             privacy_level=self.args.privacy_level
         )
 
         tools_json = json.dumps(self._get_compact_tools(), ensure_ascii=False)
-        return call_llm(self.args, prompt, role="cloud", reflection_fn=lambda x: prompts.get_reflection_cloud_prompt(self.args.strategy, x, question=self.question, tools_json=tools_json, history_json=self._get_compact_history(), feedback=local_reasoning if local_reasoning else "None", extra_instructions=self._cloud_extra_instructions))
+        return call_llm(self.args, prompt, role="cloud", reflection_fn=lambda x: prompts.get_reflection_cloud_prompt(self.args.strategy, x, question=self.question, tools_json=tools_json, history_json=self._get_compact_history(), feedback=device_reasoning if device_reasoning else "None", extra_instructions=self._cloud_extra_instructions))
 
-    def propose_actions(self, local_reasoning, previous_reasoning=None, step=None):
-        response = self.cloud_reasoning(local_reasoning, step=step)
+    def propose_actions(self, device_reasoning, previous_reasoning=None, step=None):
+        response = self.cloud_reasoning(device_reasoning, step=step)
         reasoning = response.get("reasoning", "")
 
         if "reflection" in response or "token_usage" in response:
@@ -951,7 +951,7 @@ class RecurrentGPTStrategy(AgentStrategy):
             compact.append({"step": item.get("step"), "obs": obs})
         return json.dumps(compact, indent=4, ensure_ascii=False)
 
-    def cloud_reasoning(self, local_reasoning=None, previous_reasoning=None, step=None):
+    def cloud_reasoning(self, device_reasoning=None, previous_reasoning=None, step=None):
         prev_reasoning_str = ""
         if previous_reasoning:
             if isinstance(previous_reasoning, dict):
@@ -969,15 +969,15 @@ class RecurrentGPTStrategy(AgentStrategy):
             skip_ctx=skip_ctx,
             tools_json=json.dumps(self._get_compact_tools(), ensure_ascii=False),
             history_json=self._get_compact_history(),
-            feedback=local_reasoning if local_reasoning else "None",
+            feedback=device_reasoning if device_reasoning else "None",
             privacy_level=self.args.privacy_level
         )
 
         tools_json = json.dumps(self._get_compact_tools(), ensure_ascii=False)
-        return call_llm(self.args, prompt, role="cloud", reflection_fn=lambda x: prompts.get_reflection_cloud_prompt(self.args.strategy, x, question=self.question, tools_json=tools_json, history_json=self._get_compact_history(), feedback=local_reasoning if local_reasoning else "None", extra_instructions=self._cloud_extra_instructions))
+        return call_llm(self.args, prompt, role="cloud", reflection_fn=lambda x: prompts.get_reflection_cloud_prompt(self.args.strategy, x, question=self.question, tools_json=tools_json, history_json=self._get_compact_history(), feedback=device_reasoning if device_reasoning else "None", extra_instructions=self._cloud_extra_instructions))
 
-    def propose_actions(self, local_reasoning, previous_reasoning=None, step=None):
-        response = self.cloud_reasoning(local_reasoning, previous_reasoning, step=step)
+    def propose_actions(self, device_reasoning, previous_reasoning=None, step=None):
+        response = self.cloud_reasoning(device_reasoning, previous_reasoning, step=step)
         reasoning = response.get("reasoning", "")
 
         if "reflection" in response or "token_usage" in response:
@@ -1037,14 +1037,14 @@ class ParallelPlanAndSolveStrategy(AgentStrategy):
 
         return call_llm(self.args, prompt, role="cloud", reflection_fn=lambda x: prompts.get_reflection_cloud_prompt(self.args.strategy, x, question=self.question, tools_json=tools_json, history_json=self._get_compact_history(), feedback=feedback, extra_instructions=self._cloud_extra_instructions))
 
-    def propose_actions(self, local_reasoning, previous_reasoning=None, step=None):
-        feedback = local_reasoning
+    def propose_actions(self, device_reasoning, previous_reasoning=None, step=None):
+        feedback = device_reasoning
 
-        if isinstance(local_reasoning, dict):
-            feedback = local_reasoning["feedback"]
+        if isinstance(device_reasoning, dict):
+            feedback = device_reasoning["feedback"]
 
-        if isinstance(local_reasoning, dict) and local_reasoning.get("ready_for_final_answer"):
-            feedback = f"[IMPORTANT: LOCAL JUDGE SAYS TASK IS DONE. PLEASE SUBMIT FINAL ANSWER.]\n{feedback}"
+        if isinstance(device_reasoning, dict) and device_reasoning.get("ready_for_final_answer"):
+            feedback = f"[IMPORTANT: DEVICE JUDGE SAYS TASK IS DONE. PLEASE SUBMIT FINAL ANSWER.]\n{feedback}"
 
         response = self.cloud_reasoning(feedback, previous_reasoning, step=step)
 
@@ -1060,9 +1060,9 @@ class ParallelPlanAndSolveStrategy(AgentStrategy):
 
         return output, actions
 
-    def local_judgment(self, question, current_step):
-        if self._is_tau2_user_data_retrieval(current_step["local_execution"]):
-            return self.tau2_local_judgment(current_step)
+    def device_judgment(self, question, current_step):
+        if self._is_tau2_user_data_retrieval(current_step["device_execution"]):
+            return self.tau2_device_judgment(current_step)
 
         step_info = self._format_current_step(current_step)
         plan_info = f"\n\nCurrent Plan:\n{json.dumps(self.current_plan, indent=2, ensure_ascii=False)}" if self.current_plan else ""
@@ -1072,7 +1072,7 @@ class ParallelPlanAndSolveStrategy(AgentStrategy):
             full_question = f"{question}\nChoices:\n{self.ctx.choices}"
 
         disable_ready = (self.args.decision_making == "cloud")
-        prompt = prompts.get_local_judge_plan_and_solve_prompt(
+        prompt = prompts.get_device_judge_plan_and_solve_prompt(
             question=full_question,
             step_info=step_info,
             plan_info=plan_info,
@@ -1085,7 +1085,7 @@ class ParallelPlanAndSolveStrategy(AgentStrategy):
             ))
             if self.args.tier == "pro" else None
         )
-        result = call_llm(self.args, prompt, role="local", reflection_fn=reflection_fn)
+        result = call_llm(self.args, prompt, role="device", reflection_fn=reflection_fn)
         if result is None:
             result = {}
 
@@ -1126,14 +1126,14 @@ class PlanAndSolveStrategy(ParallelPlanAndSolveStrategy):
         tools_json = json.dumps(self._get_compact_tools(), ensure_ascii=False)
         return call_llm(self.args, prompt, role="cloud", reflection_fn=lambda x: prompts.get_reflection_cloud_prompt(self.args.strategy, x, question=self.question, tools_json=tools_json, history_json=self._get_compact_history(), feedback=feedback, extra_instructions=self._cloud_extra_instructions))
 
-    def propose_actions(self, local_reasoning, previous_reasoning=None, step=None):
-        feedback = local_reasoning
+    def propose_actions(self, device_reasoning, previous_reasoning=None, step=None):
+        feedback = device_reasoning
 
-        if isinstance(local_reasoning, dict):
-            feedback = local_reasoning.get("feedback", "")
+        if isinstance(device_reasoning, dict):
+            feedback = device_reasoning.get("feedback", "")
 
-        if isinstance(local_reasoning, dict) and local_reasoning.get("ready_for_final_answer"):
-            feedback = f"[IMPORTANT: LOCAL JUDGE SAYS TASK IS DONE. PLEASE SUBMIT FINAL ANSWER.]\n{feedback}"
+        if isinstance(device_reasoning, dict) and device_reasoning.get("ready_for_final_answer"):
+            feedback = f"[IMPORTANT: DEVICE JUDGE SAYS TASK IS DONE. PLEASE SUBMIT FINAL ANSWER.]\n{feedback}"
 
         response = self.cloud_reasoning(feedback, previous_reasoning, step=step)
 
@@ -1174,7 +1174,7 @@ def run_agent(args, task_data):
 
         fallback_answer = None
         for step in reversed(captured_history):
-            for exec_log in reversed(step.get("local_execution", [])):
+            for exec_log in reversed(step.get("device_execution", [])):
                 action = exec_log.get("action", {})
                 result = exec_log.get("result", {})
                 if (isinstance(action, dict) and action.get("tool") == "final_answer"
@@ -1228,13 +1228,13 @@ if __name__ == "__main__":
     parser.add_argument("--workers", type=int, default=20, help="Number of workers")
     parser.add_argument("--run_name", type=str, default="default", help="Unique name for this run to isolate scratch directories")
     parser.add_argument("--strategy", type=str, default="parallel_plan_and_solve", choices=["react", "recurrent_gpt", "plan_and_solve", "parallel_plan_and_solve"], help="Agent Strategy")
-    parser.add_argument("--privacy_level", type=int, default=0, choices=[0, 1, 2, 3], help="Privacy Level: 0 = No Privacy; 1 = Sanitize Local Exec; 2 = Privacy 1 + Sanitize Prompt; 3 = Privacy 2 + Sanitize Search")
+    parser.add_argument("--privacy_level", type=int, default=0, choices=[0, 1, 2, 3], help="Privacy Level: 0 = No Privacy; 1 = Sanitize Device Exec; 2 = Privacy 1 + Sanitize Prompt; 3 = Privacy 2 + Sanitize Search")
 
-    parser.add_argument("--local_model", type=str, default="Qwen/Qwen3-4B-Instruct-2507", help="Local model name")
+    parser.add_argument("--device_model", type=str, default="Qwen/Qwen3-4B-Instruct-2507", help="On-device model name")
     parser.add_argument("--cloud_model", type=str, default="gemini-3-flash-preview", help="Cloud model name")
     
     parser.add_argument("--tier", type=str, default="base", choices=["base", "pro"], help="Tier: base (standard), pro (1-step reflection)")
-    parser.add_argument("--decision_making", type=str, default="joint", choices=["original", "local", "cloud", "joint"], help="Termination policy: original (judge-only baseline), local (judge decides), cloud (agent decides), joint (both must agree)")
+    parser.add_argument("--decision_making", type=str, default="joint", choices=["original", "device", "cloud", "joint"], help="Termination policy: original (judge-only baseline), device (judge decides), cloud (agent decides), joint (both must agree)")
     parser.add_argument("--run_idx", type=int, default=None, help="Run index for repeated experiments (e.g., 0, 1, 2). When set, appended to output filename.")
     parser.add_argument("--vllm_port", type=int, default=8000, help="Port for the vLLM API server")
     parser.add_argument("--results_dir", type=str, default="results", help="Directory to save the final results (default is results/)")

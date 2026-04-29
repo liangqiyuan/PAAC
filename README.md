@@ -119,7 +119,7 @@ python src/main.py \
     --strategy parallel_plan_and_solve \
     --decision_making joint \
     --tier base \
-    --local_model Qwen/Qwen3-4B-Instruct-2507 \
+    --device_model Qwen/Qwen3-4B-Instruct-2507 \
     --cloud_model gemini-3-flash-preview \
     --max_steps 10 \
     --num_samples 20 \
@@ -134,14 +134,14 @@ Key arguments:
 | `--dataset`            | `tau2_airline`, `tau2_retail`, `gaia`, `gsm8k`, `math_qa`, `geometry3k`, `mathvista`, `scibench`, `sciq`, `truthful_qa`, `hotpot_qa`, `fever`, `clutrr`, `agieval_lsat_ar`, `med_qa`, `finqa`, `mmlu_professional_accounting`, `mmmu_accounting`, `jeopardy_mc_history`, `jeopardy_mc_literature` | Benchmark to evaluate on |
 | `--privacy_level`      | `0`, `1`, `2`, `3`                                                                                | Cumulative sanitization scope (see above) |
 | `--strategy`           | `react`, `plan_and_solve`, `parallel_plan_and_solve`, `recurrent_gpt`                             | Cloud-side reasoning paradigm; orthogonal to the on-device design |
-| `--decision_making`    | `original`, `local`, `cloud`, `joint`                                                             | Termination policy. **`joint` is the paper's Consensus Termination** (`done_c ∧ done_d`); the others are unilateral ablations |
+| `--decision_making`    | `original`, `device`, `cloud`, `joint`                                                            | Termination policy. **`joint` is the paper's Consensus Termination** (`done_c ∧ done_d`); the others are unilateral ablations |
 | `--tier`               | `base`, `pro`                                                                                     | `pro` wraps each on-device role with a one-step reflection pass (extensibility probe, Appendix B.10) |
-| `--local_model`        | any vLLM-served HF model id (default `Qwen/Qwen3-4B-Instruct-2507`)                               | On-device LLM |
+| `--device_model`       | any vLLM-served HF model id (default `Qwen/Qwen3-4B-Instruct-2507`)                               | On-device LLM |
 | `--cloud_model`        | any Gemini model id (default `gemini-3-flash-preview`)                                            | Cloud LLM |
 | `--max_steps`          | int (default `10`)                                                                                | Maximum agentic steps per task (`T_max`) |
 | `--num_samples`        | int (default `20`)                                                                                | Number of tasks per run; `-1` means all |
 | `--workers`            | int (default `20`)                                                                                | Concurrent task workers |
-| `--vllm_port`          | int (default `8000`)                                                                              | Port of the local vLLM server |
+| `--vllm_port`          | int (default `8000`)                                                                              | Port of the on-device vLLM server |
 | `--run_name`           | str                                                                                               | Isolates the per-run scratch directory |
 
 Per-task results are written incrementally to:

@@ -78,8 +78,8 @@ def process_history_for_final_answer(history, max_words=2000):
 
     sanitized_history = []
     for i, item in enumerate(history):
-        local_judgment = item.get("local_judgment", {})
-        key_findings = local_judgment.get("key_findings", "")
+        device_judgment = item.get("device_judgment", {})
+        key_findings = device_judgment.get("key_findings", "")
         if isinstance(key_findings, list):
             key_findings = "\n".join(str(x) for x in key_findings)
         key_findings = truncate_by_tokens(key_findings, max_words)
@@ -87,7 +87,7 @@ def process_history_for_final_answer(history, max_words=2000):
         step_str = f"Step {item.get('step', i)}"
         step_str += f" Key Findings: {key_findings}"
 
-        for log in item.get("local_execution", []):
+        for log in item.get("device_execution", []):
             if isinstance(log, dict) and "action" in log and isinstance(log["action"], dict):
                 if log["action"].get("tool") == "final_answer":
                     cloud_args = log["action"].get("args", {})
@@ -330,8 +330,8 @@ Output JSON:
 def call_llm(args, prompt, role, temperature=1.0, max_tokens=8192, reflection_fn=None):
     if role == "cloud":
         model = args.cloud_model
-    elif role == "local":
-        model = args.local_model
+    elif role == "device":
+        model = args.device_model
     else:
         model = args.cloud_model
 
@@ -411,7 +411,7 @@ def generate_final_answer(args, question, history, sanitizer):
     history_str = sanitizer.desanitize(history_str)
     prompt = prompts.get_final_answer_extraction_prompt(question, history_str)
     result = call_llm(
-        args, prompt, role="local",
+        args, prompt, role="device",
         reflection_fn=lambda x: prompts.get_reflection_final_answer_prompt(x, question, history_str),
     )
     return result["answer"], history_str, result["token_usage"]
@@ -449,8 +449,8 @@ def _process_tau2_final_answer(args, history, task_id, toolbox):
         simplified_history = []
         for step in history:
             simplified_step = {"step": step.get("step")}
-            if "local_execution" in step:
-                simplified_step["local_execution"] = step["local_execution"]
+            if "device_execution" in step:
+                simplified_step["device_execution"] = step["device_execution"]
             simplified_history.append(simplified_step)
         history_str = json.dumps(simplified_history, indent=2, ensure_ascii=False)
 

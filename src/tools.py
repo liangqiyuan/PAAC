@@ -130,7 +130,7 @@ class ToolBox:
             },
             {
                 "name": "final_answer",
-                "description": "Signal that you have solved the problem. Provide the answer you found (including placeholders/tokens if that is what you see) and your reasoning. This stops the loop and triggers verification by the Local Agent.",
+                "description": "Signal that you have solved the problem. Provide the answer you found (including placeholders/tokens if that is what you see) and your reasoning. This stops the loop and triggers verification by the Device Agent.",
                 "args": {
                     "answer": "string",
                     "reasoning": "string"

@@ -101,7 +101,7 @@ Replace target values with typed tokens. Choose SEMANTICALLY MEANINGFUL token na
 # On-Device Judge Prompts
 # =============================================================================
 
-def get_local_judge_react_prompt(question, step_info, disable_ready=False):
+def get_device_judge_react_prompt(question, step_info, disable_ready=False):
     ready_block = """2. **Determine Status**:
    - **ready_for_final_answer = True**:
      - The Cloud Agent used `final_answer` AND the answer is strictly supported by tool outputs.
@@ -147,7 +147,7 @@ def get_local_judge_react_prompt(question, step_info, disable_ready=False):
 }}
 """
 
-def get_local_judge_plan_and_solve_prompt(question, step_info, plan_info, disable_ready=False):
+def get_device_judge_plan_and_solve_prompt(question, step_info, plan_info, disable_ready=False):
     ready_block = """2. **Determine Global Status**:
    - **ready_for_final_answer = True**:
      - The Cloud Agent used `final_answer` and it is strictly supported by real tool outputs.
