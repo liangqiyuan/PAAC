@@ -1,13 +1,14 @@
 import io
+import json
 import os
 import random
+import subprocess
+import sys
 import tempfile
 import threading
 import time
 import traceback
-import multiprocessing
 import zipfile
-from contextlib import redirect_stdout, redirect_stderr
 from urllib.parse import parse_qs, unquote, urlparse
 
 import arxiv
@@ -24,7 +25,7 @@ from pptx import Presentation
 from pydub import AudioSegment
 from tenacity import retry, stop_after_attempt, wait_random
 
-from utils import get_exec_globals, call_gemini_search, call_gemini_vision
+from utils import call_gemini_search, call_gemini_vision
 
 
 # =========================
@@ -40,42 +41,11 @@ _WEB_SEARCH_CACHE = {}
 # =========================
 # Standalone Helper Functions
 # =========================
-def execute_in_process(code_str, file_path, result_dict, work_dir=None):
-    """Execute user Python code in an isolated subprocess with a working directory."""
-    if work_dir:
-        os.makedirs(work_dir, exist_ok=True)
-        os.chdir(work_dir)
 
-    output_buffer = io.StringIO()
-    exec_globals = get_exec_globals()
-
-    if file_path:
-        exec_globals["FILE_PATH"] = file_path
-        os.environ["FILE_PATH"] = file_path
-
-    display_vars = {}
-
-    # Use a single scope so functions defined inside the snippet still see the
-    # standard-library globals (mirrors module-level execution semantics).
-    execution_scope = exec_globals.copy()
-
-    with redirect_stdout(output_buffer), redirect_stderr(output_buffer):
-        try:
-            exec(code_str, execution_scope, execution_scope)
-            result_dict["success"] = True
-        except Exception:
-            result_dict["success"] = False
-            result_dict["error"] = traceback.format_exc()
-        finally:
-            result_dict["output"] = output_buffer.getvalue()
-
-            initial_keys = set(exec_globals.keys())
-            for k, v in execution_scope.items():
-                if k not in initial_keys and type(v).__name__ != 'module':
-                    if not k.startswith("__"):
-                        display_vars[k] = v
-
-            result_dict["local_vars"] = str(display_vars)
+_PYTHON_EXEC_HELPER = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "tools_python_exec.py",
+)
 
 
 # =========================
@@ -87,7 +57,6 @@ class ToolBox:
 
     def __init__(self, args):
         self.args = args
-        self.manager = multiprocessing.Manager()
         self._registry = [
             {
                 "name": "web_search",
@@ -574,35 +543,66 @@ class ToolBox:
         }
 
     def python_exec(self, code, file_path_var=None, work_dir=None, timeout=60):
-        return_dict = self.manager.dict()
-        
-        p = multiprocessing.Process(target=execute_in_process, args=(code, file_path_var, return_dict, work_dir))
-        p.start()
-        p.join(timeout)
-        
-        if p.is_alive():
-            p.terminate()
-            p.join()
+        # Spawn a fresh interpreter via the standalone helper.
+        env = os.environ.copy()
+        if file_path_var:
+            env["FILE_PATH"] = file_path_var
+
+        cmd = [sys.executable, _PYTHON_EXEC_HELPER, work_dir or ""]
+        try:
+            completed = subprocess.run(
+                cmd,
+                input=code,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                timeout=timeout,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except subprocess.TimeoutExpired:
             return {
                 "tool": "python_exec",
                 "success": False,
                 "error": f"Timeout: Code execution exceeded {timeout} seconds.",
-                "partial_output": "" 
+                "partial_output": "",
             }
-        
-        if return_dict.get("success"):
+
+        # Helper writes a single JSON line to stdout. 
+        stdout = completed.stdout or ""
+        last_line = stdout.strip().splitlines()[-1] if stdout.strip() else ""
+        try:
+            result = json.loads(last_line) if last_line else None
+        except ValueError:
+            result = None
+
+        if result is None:
+            return {
+                "tool": "python_exec",
+                "success": False,
+                "error": (
+                    f"Helper exited without a JSON result line "
+                    f"(returncode={completed.returncode}).\n"
+                    f"stdout:\n{stdout}\nstderr:\n{completed.stderr or ''}"
+                ),
+                "partial_output": stdout,
+            }
+
+        if result.get("success"):
             return {
                 "tool": "python_exec",
                 "success": True,
-                "output": f"Stdout/Stderr:\n{return_dict.get('output', '')}\nLocal Variables:\n{return_dict.get('local_vars', '{}')}"
+                "output": (
+                    f"Stdout/Stderr:\n{result.get('output', '')}\n"
+                    f"Local Variables:\n{result.get('local_vars', '{}')}"
+                ),
             }
-        else:
-            return {
-                "tool": "python_exec", 
-                "success": False, 
-                "error": return_dict.get("error", "Unknown error"),
-                "partial_output": return_dict.get("output", "")
-            }
+        return {
+            "tool": "python_exec",
+            "success": False,
+            "error": result.get("error") or "Unknown error",
+            "partial_output": result.get("output", ""),
+        }
 
     @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=5))
     def arxiv_search(self, query, max_results=5):
