@@ -81,12 +81,13 @@ PAAC/
 │   .gitignore
 │
 ├─── src/
-│   │   main.py            # Entry point, argument parsing, run loop
-│   │   config.py          # Per-dataset tool whitelist + privacy categories
-│   │   data_loader.py     # 20 benchmark loaders (HF Hub + local caches)
-│   │   prompts.py         # Sanitization / cloud-agent / judge / final-answer prompts
-│   │   tools.py           # ToolBox + Tau2ToolBox (web, file, code, domain APIs)
-│   │   utils.py           # LLM clients (Gemini / vLLM), I/O, evaluation helpers
+│   │   main.py                 # Entry point, argument parsing, run loop
+│   │   config.py               # Per-dataset tool whitelist + privacy categories
+│   │   data_loader.py          # 20 benchmark loaders (HF Hub + local caches)
+│   │   prompts.py              # Sanitization / cloud-agent / judge / final-answer prompts
+│   │   tools.py                # ToolBox + Tau2ToolBox (web, file, code, domain APIs)
+│   │   tools_python_exec.py    # Standalone subprocess runner for the Python sandbox
+│   │   utils.py                # LLM clients (Gemini / vLLM), I/O, evaluation helpers
 │
 ├─── scripts/
 │   │   run_example.sh     # Reference launcher with all flags
@@ -100,6 +101,7 @@ PAAC/
 - **`src/config.py`** — declares the **per-dataset tool whitelist** and the **cumulative privacy levels** as ordered subsets of typed sensitive categories.
 - **`src/prompts.py`** — every prompt: the LLM-as-proposer sanitizer, the cloud agent's planner/solver variants, the on-device Judge, the final-answer generator, the per-step reflectors (used by the `pro` tier), and the τ²-Bench server-side evaluator.
 - **`src/tools.py`** — the executable tools: web search, page visit, arxiv / Wikipedia, Python sandbox, file readers (PDF / DOCX / PPTX / audio), and the τ²-Bench domain APIs. Tool execution lives in the *execution environment* and consumes desanitized arguments.
+- **`src/tools_python_exec.py`** — standalone subprocess runner that backs the Python sandbox tool.
 - **`src/utils.py`** — Gemini and vLLM client wrappers, JSON-repair parsing, token-aware truncation, NLTK noun/number extraction, evaluation helpers, incremental saving.
 
 
