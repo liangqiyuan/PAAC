@@ -547,40 +547,41 @@ Review the `extracted_mapping` and `processed_content`.
 }}
 """
 
-def get_reflection_judge_prompt(original_output, question, step_info, plan_info="", extra_instructions=""):
+def get_reflection_judge_prompt(original_output, question, step_info, plan_info=None, extra_instructions=""):
     output_str = json.dumps(original_output, indent=2, ensure_ascii=False)
+    plan_section = f"\n### Plan\n{plan_info}\n" if plan_info else ""
 
-    plan_block = f"\n### Plan\n{plan_info}\n" if plan_info else ""
-    extras_block = f"\n### Additional Context\n{extra_instructions}\n" if extra_instructions else ""
-
-    return f"""You are a Quality Control Specialist. Verify the correctness of the evaluation decision.
+    return f"""You are a Quality Control Specialist. Verify the correctness of the local judge's evaluation against the actual question and execution evidence.
 
 {question}
 
-### Execution Results
+### Step Execution Context (tool calls, arguments, observations)
 {step_info}
-{plan_block}{extras_block}
-### Judge Output
+{plan_section}
+### Judge Output (to verify)
 {output_str}
 
+### Additional Context
+{extra_instructions}
+
 ### Task
-Review the judge's decision thoroughly.
-1. **Readiness Consistency**: 
-   - If ready_for_final_answer is true, is the evidence in `key_findings` or tool output STRONG enough? 
-   - If the answer is a placeholder (e.g. {{RESULT}}), ready_for_final_answer MUST be false (Reject).
-2. **Hallucination Check**: 
-   - Did the judge claim to find an answer that isn't in the execution logs?
-3. **Fact Extraction**: 
-   - Are the `key_findings` logically derivable from available context (tool outputs, prior findings)?
+Review the judge's decision thoroughly using the original question and Step Execution Context above.
+1. **Evidence Grounding**: Are `key_findings` LITERALLY supported by the tool outputs in Step Execution Context? Any fact not traceable to a tool result or prior step is a hallucination — fix the specific fact using only what's actually in the logs.
+2. **Readiness Consistency**:
+   - If `ready_for_final_answer` is true, does the evidence truly suffice to answer the original question? If not, set false and explain in `feedback`.
+   - If the proposed answer contains a placeholder (e.g. {{RESULT}}, DATE_1), `ready_for_final_answer` MUST be false.
+3. **No Unjustified Self-Flips**: If the agent already produced a coherent answer that is consistent with the question and tool outputs, do NOT instruct the agent to abandon it without concrete contradicting evidence in the logs. Spurious "you should reconsider" feedback is a common failure mode — reject it.
+4. **Hallucination Check**: Reject any claim of facts not present in Step Execution Context.
 
 ### Rules
-- `key_findings` contains facts extracted from real tool outputs. You MUST NOT delete or empty this field. Ensure it remains a coherent, descriptive sentence.
+- Preserve the original judge output's structure (`ready_for_final_answer`, `feedback`, `key_findings`, and any `token_usage`).
+- `key_findings` contains facts extracted from real tool outputs. You MUST NOT delete or empty this field. Keep it a coherent, descriptive sentence.
 - Do NOT replace `key_findings` content with placeholders like "{{RESULT}}" or empty strings.
-- You MAY correct `key_findings` only if the judge fabricated data that does not appear in any tool output — in that case, fix the specific incorrect fact, do not clear the entire field, and keep it coherent.
+- You MAY correct `key_findings` only if the judge fabricated data that does not appear in any tool output — in that case, fix only the specific incorrect fact, do not clear the entire field.
 
 ### Decision
 - If the output is **Correct**, return strictly: {{"is_correct": true}}
-- If the output is **Incorrect**, provide the corrected JSON.
+- If the output is **Incorrect**, provide the corrected JSON with the SAME fields.
 
 ### Output Format
 {{
@@ -592,27 +593,30 @@ Review the judge's decision thoroughly.
 def get_reflection_final_answer_prompt(original_output, question, history_str):
     output_str = json.dumps(original_output, indent=2, ensure_ascii=False)
 
-    return f"""You are a Final Reviewer. Verify the generated final answer against formatting and safety rules.
+    return f"""You are a Final Reviewer. Verify the generated final answer against the actual question and execution evidence.
 
 {question}
 
-### History
+### Execution History (Key Findings, tool outputs, and prior submissions)
 {history_str}
 
-### Cloud Output
+### Cloud Output (to verify)
 {output_str}
 
 ### Task
-1. **Format Check**: 
-   - If the question asked for a number, is it JUST a number? (No words like "The answer is")
-   - If the question asked for a list, is it formatted correctly?
-2. **Safety Check**:
-   - Does the answer contain any PLACEHOLDERS (e.g., DATE_1, RESULT_2)? If so, this is a FAILURE. The answer must be concrete.
-   - Does the answer say "I don't know"? The agent must make a best guess if possible.
+1. **Evidence Match**: Is `answer` directly supported by the Execution History? If History clearly contradicts it, override with the History-supported answer in `correction`.
+2. **Format Check**:
+   - If the question asks for a number, return only digits (no units, no "The answer is").
+   - If the question asks for a list, format it correctly.
+   - Match casing, spelling, and precision exactly as implied by the question or Key Findings.
+3. **Safety Check**:
+   - Does the answer contain placeholders (e.g., DATE_1, RESULT_2)? That is a FAILURE — replace with the concrete value derivable from History.
+   - Does the answer say "I don't know" / "not available"? That is a FAILURE — derive a best-guess from History.
+4. **No Unjustified Self-Flips**: If the answer is already consistent with both the question and the strongest Key Findings, leave it as-is and return {{"is_correct": true}}. Do NOT rewrite a correct answer to a different one without concrete contradicting evidence in History.
 
 ### Decision
 - If the output is **Correct**, return strictly: {{"is_correct": true}}
-- If the output is **Incorrect** (format wrong, placeholders used), provide the corrected JSON.
+- If the output is **Incorrect** (wrong format, placeholders, refusal, or contradicted by History), provide the corrected JSON.
 
 ### Output Format
 {{
