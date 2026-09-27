@@ -1,16 +1,25 @@
-## PAAC: Privacy-Aware Agentic Device-Cloud Collaboration
+<div align="center">
 
-[![python](https://img.shields.io/badge/Python_3.10-306998?logo=python&logoColor=FFD43B)](https://www.python.org/downloads/release/python-31012/)
+# PAAC: Privacy-Aware Agentic Device-Cloud Collaboration
+
+[![NeurIPS 2026](https://img.shields.io/badge/NeurIPS-2026-4B44CE?style=flat)](https://liangqiyuan.github.io/PAAC/)
+[![arXiv](https://img.shields.io/badge/arXiv-2605.08646-B31B1B?style=flat&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2605.08646)
+[![Project Page](https://img.shields.io/badge/Project-Page-1F72FF?style=flat&logo=googlechrome&logoColor=white)](https://liangqiyuan.github.io/PAAC/)
+[![Python 3.10](https://img.shields.io/badge/Python-3.10-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/downloads/release/python-31012/)
+
+Official implementation of **PAAC: Privacy-Aware Agentic Device-Cloud Collaboration**, accepted at **NeurIPS 2026**.
+
+</div>
 
 
 ## 🔥 Our Framework
 
-**PAAC** (Privacy-Aware Agentic Device-Cloud Collaboration) is a decoupled framework that aligns role decomposition with the device–cloud trust boundary, following a **cloud-reason-and-plan, device-execute-and-judge** paradigm. The cloud agent reasons and plans over *sanitized* representations; the on-device agent runs **Privacy Sanitization**, **Judge**, and **Final Answer Generation**. Per-step on-device distillation keeps both agents' contexts bounded across agentic rounds, and **consensus termination** requires both sides to agree before the loop ends.
+**PAAC** aligns the planner-executor split with the device-cloud trust boundary, following a **cloud-reason-and-plan, device-execute-and-judge** paradigm. The cloud agent reasons and plans over typed proxy tokens, while the on-device agent handles **Privacy Sanitization**, **Judge**, and **Final Answer Generation** with the real values. Per-step distillation on the device keeps both agents' inputs compact across agentic rounds, and **consensus termination** ends the loop only when both agents agree.
 
-For sanitization, PAAC reframes the on-device LLM as a **proposer** that nominates each sensitive span together with its semantic type and a sanitized replacement. An alignment check gates every commit, and a deterministic, append-only **regex registry** carries all substitution and reversal, so cloud-side actions are desanitized and dispatched to tools without a second LLM pass.
+For sanitization, the on-device LLM only **proposes** which spans to mask and which typed proxy token each one receives. An alignment check gates every commit, and a deterministic, append-only **regex registry** performs all substitution and reversal, so cloud actions are desanitized and sent to tools without a second LLM call.
 
 <div align="center">
-    <img src="figures/overview.png" alt="overview" style="width:50%;"/>
+    <img src="figures/overview.png" alt="overview" width="50%"/>
 </div>
 
 
@@ -45,7 +54,7 @@ python -m vllm.entrypoints.openai.api_server \
 
 ## 📚 Benchmark Coverage
 
-PAAC is evaluated on **20 benchmarks** spanning **12 domains**. The privacy categories of each dataset are tailored to the information most central to that task's reasoning chain (e.g. numeric values for math, entities for factual QA, transaction fields for τ²-Bench), simulating realistic privacy concerns under sanitization.
+PAAC is evaluated on **20 benchmarks** spanning **11 domains**. The privacy categories of each dataset target the information most central to its reasoning, such as numbers in math, entities in factual QA, and transaction fields in τ²-Bench.
 
 | Domain                | Dataset(s)                                                           | Privacy Categories (illustrative)            |
 | --------------------- | -------------------------------------------------------------------- | -------------------------------------------- |
@@ -61,12 +70,12 @@ PAAC is evaluated on **20 benchmarks** spanning **12 domains**. The privacy cate
 | History               | Jeopardy MC (History)                                                | Entities                               |
 | Literature            | Jeopardy MC (Literature)                                             | Entities                               |
 
-Privacy is parameterised by `--privacy_level {0,1,2,3}`, where higher levels are **cumulative** — each level activates additional sanitized categories on top of the previous one:
+Privacy is set by `--privacy_level {0,1,2,3}`. Levels are cumulative, and each one adds categories on top of the previous level.
 
-- `0` — No protection (vanilla cloud-agent baseline; reasoning is performed over the original input).
-- `1` — Sensitive content is confined to internal records (e.g. tool-call returns on τ²-Bench, user-uploaded files on GAIA) and never enters the transmitted query, so leakage is **trivially zero by construction**.
-- `2` — Activates standard PII and task-relevant identifiers in the user query (names, emails, phones, addresses, identity docs, dates, payment info, order IDs, etc., dataset-dependent).
-- `3` — Adds the broadest category set (e.g. pricing/products on τ²-Bench; URLs and search results on GAIA), exercising the strictest sanitization regime.
+- `0`: No protection. The cloud agent sees the original input.
+- `1`: Sensitive content stays in internal records, such as tool returns on τ²-Bench and user-uploaded files on GAIA, and never enters the query sent to the cloud, so leakage is zero by construction.
+- `2`: Adds standard identifiers in the user query, such as names, emails, phones, addresses, identity documents, dates, payment information, and order IDs, depending on the dataset.
+- `3`: Adds open-vocabulary categories, such as prices and products on τ²-Bench and URLs and search results on GAIA.
 
 Non-agentic benchmarks use a single task-specific privacy axis at `P1` (e.g. *numbers* for GSM8K, *entities* for TruthfulQA, *patient profile* for MedQA). The exact per-dataset privacy categories are declared in `src/config.py`.
 
@@ -136,7 +145,7 @@ Key arguments:
 | `--privacy_level`      | `0`, `1`, `2`, `3`                                                                                | Cumulative sanitization scope (see above) |
 | `--strategy`           | `react`, `plan_and_solve`, `parallel_plan_and_solve`, `recurrent_gpt`                             | Cloud-side reasoning paradigm; orthogonal to the on-device design |
 | `--decision_making`    | `original`, `device`, `cloud`, `joint`                                                            | Termination policy. **`joint` is the paper's Consensus Termination** (`done_c ∧ done_d`); the others are unilateral ablations |
-| `--tier`               | `base`, `pro`                                                                                     | `pro` wraps each on-device role with a one-step reflection pass (extensibility probe, Appendix B.10) |
+| `--tier`               | `base`, `pro`                                                                                     | `pro` wraps each on-device role with a one-step reflection pass (extensibility probe, Appendix A.10) |
 | `--device_model`       | any vLLM-served HF model id (default `Qwen/Qwen3-4B-Instruct-2507`)                               | On-device LLM |
 | `--cloud_model`        | any Gemini model id (default `gemini-3-flash-preview`)                                            | Cloud LLM |
 | `--max_steps`          | int (default `10`)                                                                                | Maximum agentic steps per task (`T_max`) |
@@ -148,6 +157,19 @@ Key arguments:
 Per-task results are written incrementally to:
 ```
 results/<dataset>/strategy_<strategy>_privacy_<lvl>_tier_<tier>_decision_<mode>.json
+```
+
+
+## 📝 Citation
+
+If you find PAAC useful, please cite our paper:
+```bibtex
+@inproceedings{yuan2026paac,
+  title={PAAC: Privacy-Aware Agentic Device-Cloud Collaboration},
+  author={Yuan, Liangqi and Fang, Wenzhi and Wang, Shiqiang and Brinton, Christopher G},
+  booktitle={Advances in Neural Information Processing Systems},
+  year={2026}
+}
 ```
 
 

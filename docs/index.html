@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PAAC: Privacy-Aware Agentic Device-Cloud Collaboration</title>
+  <meta name="description" content="PAAC lets a cloud LLM agent plan over typed proxy tokens while a small on-device LLM keeps the real values, executes every action, and judges each step.">
+  <meta name="keywords" content="LLM agents, privacy, device-cloud collaboration, sanitization, on-device LLM, NeurIPS 2026">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="PAAC: Privacy-Aware Agentic Device-Cloud Collaboration">
+  <meta property="og:description" content="PAAC lets a cloud LLM agent plan over typed proxy tokens while a small on-device LLM keeps the real values, executes every action, and judges each step.">
+  <meta property="og:url" content="https://liangqiyuan.github.io/PAAC/">
+  <meta property="og:image" content="https://liangqiyuan.github.io/PAAC/static/images/overview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://liangqiyuan.github.io/PAAC/static/images/overview.png">
+  <meta name="author" content="Liangqi Yuan, Wenzhi Fang, Shiqiang Wang, Christopher G. Brinton">
+  <meta name="citation_title" content="PAAC: Privacy-Aware Agentic Device-Cloud Collaboration">
+  <meta name="citation_conference_title" content="Advances in Neural Information Processing Systems (NeurIPS)">
+  <meta name="citation_publication_date" content="2026">
+  <meta name="citation_author" content="Yuan, Liangqi">
+  <meta name="citation_author" content="Fang, Wenzhi">
+  <meta name="citation_author" content="Wang, Shiqiang">
+  <meta name="citation_author" content="Brinton, Christopher G.">
+  <meta name="citation_pdf_url" content="https://liangqiyuan.github.io/PAAC/static/pdfs/PAAC.pdf">
+
+  <link rel="stylesheet" href="static/css/bulma.min.css">
+  <link rel="stylesheet" href="static/css/index.css">
+  <link rel="stylesheet" href="static/css/paac.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script defer src="static/js/fontawesome.all.min.js"></script>
+  <script defer src="static/js/index.js"></script>
+</head>
+<body>
+
+<button class="scroll-to-top" onclick="scrollToTop()" title="Scroll to top" aria-label="Scroll to top">
+  <i class="fas fa-chevron-up"></i>
+</button>
+
+<main id="main-content">
+
+<!-- Title -->
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-2 publication-title">PAAC: Privacy-Aware Agentic<br>Device-Cloud Collaboration</h1>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><a href="https://liangqiy.com/" target="_blank">Liangqi Yuan</a><sup>1</sup>,</span>
+            <span class="author-block"><a href="https://wenzhifang.github.io/" target="_blank">Wenzhi Fang</a><sup>1</sup>,</span>
+            <span class="author-block"><a href="https://shiqiang.wang/" target="_blank">Shiqiang Wang</a><sup>2</sup>,</span>
+            <span class="author-block"><a href="https://www.cbrinton.net/" target="_blank">Christopher G. Brinton</a><sup>1</sup></span>
+          </div>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup> Purdue University</span>
+            <span class="author-block"><sup>2</sup> University of Exeter</span>
+          </div>
+          
+          <span class="venue-tag">NeurIPS 2026</span>
+
+          <div class="publication-links" style="margin-top: 3rem;">
+            <span class="link-block">
+              <a href="static/pdfs/PAAC.pdf" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                <span class="icon"><i class="fas fa-file-pdf"></i></span><span>Paper</span>
+              </a>
+            </span>
+            <span class="link-block">
+              <a href="https://arxiv.org/abs/2605.08646" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                <span class="icon"><i class="ai ai-arxiv"></i></span><span>arXiv</span>
+              </a>
+            </span>
+            <span class="link-block">
+              <a href="https://github.com/liangqiyuan/PAAC" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                <span class="icon"><i class="fab fa-github"></i></span><span>Code</span>
+              </a>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Teaser -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Typed Proxy Tokens at the Device-Cloud Boundary</h2>
+      <p class="is-size-5 has-text-justified">
+        PAAC replaces <span class="orig">sensitive spans</span> with <span class="tk">typed proxy tokens</span> in every request that leaves the device. The cloud agent plans over these tokens, and the device puts the real values back before any tool runs.
+      </p>
+      <br>
+      <div class="table-container">
+      <table class="table is-fullwidth compare">
+        <thead>
+          <tr><th>Benchmark</th><th>On Device</th><th>Sent to Cloud</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>GSM8K</b><br>numbers</td>
+            <td class="mono">Josh decides to try flipping a house. He buys a house for <span class="orig">$80,000</span> and then puts in <span class="orig">$50,000</span> in repairs. This increased the value of the house by <span class="orig">150%</span>. How much profit did he make?</td>
+            <td class="mono">Josh decides to try flipping a house. He buys a house for $<span class="tk">MONEY_1</span> and then puts in $<span class="tk">MONEY_2</span> in repairs. This increased the value of the house by <span class="tk">PERCENTAGE_1</span>. How much profit did he make?</td>
+          </tr>
+          <tr>
+            <td><b>TruthfulQA</b><br>entities</td>
+            <td class="mono">What happens to you if you eat <span class="orig">watermelon seeds</span>?</td>
+            <td class="mono">What happens to you if you eat <span class="tk">ENTITY_NOUN_1</span>?</td>
+          </tr>
+          <tr>
+            <td><b>CLUTRR</b><br>names</td>
+            <td class="mono"><span class="orig">Clarence</span>'s granddaughter, <span class="orig">Emily</span>, was busy helping her brother, <span class="orig">Michael</span>, move to college. Question: What is <span class="orig">Michael</span> to <span class="orig">Clarence</span>?</td>
+            <td class="mono"><span class="tk">NAME_FIRST_1</span>'s granddaughter, <span class="tk">NAME_FIRST_3</span>, was busy helping her brother, <span class="tk">NAME_FIRST_2</span>, move to college. Question: What is <span class="tk">NAME_FIRST_2</span> to <span class="tk">NAME_FIRST_1</span>?</td>
+          </tr>
+          <tr>
+            <td><b>&tau;<sup>2</sup>-Retail</b><br>transactions</td>
+            <td class="mono">You want to change <span class="orig">#W8665881</span> to be delivered to <span class="orig">Suite 641</span> instead. You are <span class="orig">Fatima Johnson</span> in zipcode <span class="orig">78712</span>.</td>
+            <td class="mono">You want to change #<span class="tk">ORDER_ID_1</span> to be delivered to <span class="tk">LOCATION_CITY_1</span> instead. You are <span class="tk">NAME_FIRST_1</span> <span class="tk">NAME_LAST_1</span> in zipcode <span class="tk">ADDRESS_ZIP_1</span>.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Abstract -->
+<section class="section hero">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column">
+        <h2 class="title is-4">Abstract</h2>
+        <div class="content has-text-justified is-size-6">
+          <p>
+            Large language model (LLM) agents face a structural tension: cloud agents provide strong reasoning but expose user data, while on-device agents preserve privacy at the cost of overall capability. Existing device-cloud designs treat this boundary as a compute split rather than a trust boundary suited to agentic workloads, and existing sanitizers force a choice between policy flexibility and the structural fidelity tool calls require. In this work, we develop PAAC, a privacy-aware agentic framework that aligns planner-executor decomposition with the device-cloud boundary so that role specialization itself becomes the privacy mechanism. The cloud agent reasons over typed placeholder tokens that preserve each sensitive value's reasoning role while discarding its content, while the on-device agent identifies sensitive spans and distills each step's execution outcome into compact key findings. Sanitization confines the on-device LLM to proposing which spans to mask, while a deterministic registry performs all substitution and reversal, keeping actions directly executable on device. On three agentic benchmarks under strict privacy settings, PAAC dominates the Pareto frontier of privacy and accuracy, improving average accuracy by 15-36% and reducing average leakage by 2-6&times; over state-of-the-art device-cloud baselines, with the largest margins on privacy targets outside fixed entity taxonomies. We find consistent improvements on 17 additional benchmarks spanning 10 domains, including math, science, and finance.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Method -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Method</h2>
+      <p class="is-size-5 has-text-justified">
+        Agentic reasoning depends on the roles that values play, not on the values themselves. PAAC builds on this observation with a <i>cloud-reason-and-plan, device-execute-and-judge</i> loop that places the split on the device-cloud trust boundary.
+      </p>
+      <div class="publication-image" style="margin-top: 1.5rem;">
+        <img src="static/images/introduction.png" alt="Comparison of device-cloud collaboration paradigms" style="width:100%; height:auto; display:block; margin:auto;">
+      </div>
+
+      <h3 class="title is-4" style="margin-top: 4rem;">Decoupled Agentic Architecture</h3>
+      <div class="columns is-vcentered">
+        <div class="column is-7">
+          <ol class="is-size-5 has-text-justified" style="margin-left: 2rem; list-style-type: decimal;">
+            <li style="margin-bottom: 0.5rem;"><b>Sanitize:</b> The on-device LLM finds sensitive spans, and a registry swaps each for a typed proxy token, such as <code>ACB123</code> for <code>ID_1</code>.</li>
+            <li style="margin-bottom: 0.5rem;"><b>Reason:</b> The cloud agent reads the sanitized question, key findings, and feedback, then returns an action such as <code>get_reservation(ID_1)</code> along with its reasoning and plan.</li>
+            <li style="margin-bottom: 0.5rem;"><b>Execute:</b> The device restores the real values without an LLM call and runs <code>get_reservation(ACB123)</code>, so a tool sees only the arguments of that call.</li>
+            <li style="margin-bottom: 0.5rem;"><b>Judge:</b> The on-device Judge distills the result into key findings and feedback for the next step, and decides whether the task is ready for a final answer.</li>
+          </ol>
+        </div>
+        <div class="column is-5">
+          <div class="publication-image">
+            <img src="static/images/overview.png" alt="Overview of the PAAC framework" style="width:100%; height:auto; display:block; margin:auto;">
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 3rem;">
+        <h3 class="title is-4">Sanitization Across Agentic Steps</h3>
+        <p class="is-size-5 has-text-justified">
+          The on-device LLM only proposes which spans to mask, while a deterministic registry performs every substitution and reversal. Protection therefore holds at every step, even when the LLM makes a mistake.
+        </p>
+        <ul class="is-size-5 has-text-justified" style="margin-left: 2rem; list-style-type: disc; margin-top: 0.75rem;">
+          <li style="margin-bottom: 0.5rem;"><b>At the First Turn:</b> The registry is built from the user request before any tool output arrives, so the values it holds stay hidden even if a later tool output misleads the on-device LLM.</li>
+          <li style="margin-bottom: 0.5rem;"><b>Within Each Proposal:</b> A proposal is committed in full only if it maps back exactly to the original text, so a mistake produces a misaligned token rather than a leak.</li>
+          <li style="margin-bottom: 0.5rem;"><b>Across Agentic Rounds:</b> The registry only grows, so values masked earlier stay masked and the same value keeps the same token in every round.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Results -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Results</h2>
+      <p class="is-size-5 has-text-justified">
+        PAAC attains the best privacy-accuracy trade-off on all three agentic benchmarks. It leaks far less than prior device-cloud methods while matching the accuracy of a strong cloud agent, and its protection holds on names, order IDs, and addresses that pattern-based masking misses. As the privacy policy tightens, its accuracy and token cost stay stable, while the baselines degrade on both.
+      </p>
+
+
+      <div style="margin-top: 2rem;">
+        <h3 class="title is-4">Privacy-Accuracy and Cost-Accuracy Trade-offs</h3>
+        <div class="columns">
+          <div class="column">
+            <div class="publication-image">
+              <img src="static/images/leak_vs_accuracy.png" alt="Accuracy versus leakage" loading="lazy">
+            </div>
+            <p class="has-text-centered">Accuracy versus leakage on three agentic benchmarks under the strictest privacy policy. PAAC occupies the upper-left region.</p>
+          </div>
+          <div class="column">
+            <div class="publication-image">
+              <img src="static/images/token_vs_accuracy.png" alt="Accuracy versus token cost on GAIA" loading="lazy">
+            </div>
+            <p class="has-text-centered">Accuracy versus token cost on GAIA. PAAC stays in a compact cluster as the privacy policy tightens.</p>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+</section>
+
+<!-- Benchmarks -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Benchmarks</h2>
+      <p class="is-size-5 has-text-justified">
+        PAAC is evaluated on 20 benchmarks across 11 domains. Beyond personal data in agentic tasks, the evaluation also masks the content each task depends on most, such as every number in a math problem or every entity in a factual question.
+      </p>
+      <br>
+      <div class="table-container">
+        <table class="table is-fullwidth is-hoverable">
+          <thead>
+            <tr><th>Domain</th><th>Benchmarks</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Agentic</td><td>&tau;<sup>2</sup>-Bench Airline, &tau;<sup>2</sup>-Bench Retail, GAIA</td></tr>
+            <tr><td>Math</td><td>GSM8K, MathQA</td></tr>
+            <tr><td>Multimodal Math</td><td>Geometry3K, MathVista</td></tr>
+            <tr><td>Science</td><td>SciBench, SciQ</td></tr>
+            <tr><td>Factual Reasoning</td><td>TruthfulQA, HotpotQA, FEVER</td></tr>
+            <tr><td>Logic Reasoning</td><td>CLUTRR, AGIEval LSAT-AR</td></tr>
+            <tr><td>Medical</td><td>MedQA</td></tr>
+            <tr><td>Finance</td><td>FinQA</td></tr>
+            <tr><td>Accounting</td><td>MMLU Professional Accounting, MMMU Accounting</td></tr>
+            <tr><td>History</td><td>Jeopardy History</td></tr>
+            <tr><td>Literature</td><td>Jeopardy Literature</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- BibTeX -->
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <div class="bibtex-header">
+      <h2 class="title">BibTeX</h2>
+      <button class="copy-bibtex-btn" onclick="copyBibTeX()" title="Copy BibTeX to clipboard">
+        <i class="fas fa-copy"></i>
+        <span class="copy-text">Copy</span>
+      </button>
+    </div>
+    <pre id="bibtex-code"><code>@inproceedings{yuan2026paac,
+  title={PAAC: Privacy-Aware Agentic Device-Cloud Collaboration},
+  author={Yuan, Liangqi and Fang, Wenzhi and Wang, Shiqiang and Brinton, Christopher G},
+  booktitle={Advances in Neural Information Processing Systems},
+  year={2026}
+}</code></pre>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content has-text-centered">
+          <p>
+            This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a>,
+            which was adopted from the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
+            This website is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

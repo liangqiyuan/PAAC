@@ -1,0 +1,40 @@
+/* Colors and layout only. Font sizes come from Bulma classes, as in the NeLV page. */
+
+.venue-tag {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.1rem 0.8rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 600;
+}
+
+/* Sanitization examples */
+table.compare td { vertical-align: middle; }
+table.compare td:first-child { white-space: nowrap; width: 12rem; }
+table.compare .mono { font-family: 'SF Mono', 'Monaco', 'Roboto Mono', monospace; }
+.tk { background: #e0ecff; color: #0b4aa2; padding: 1px 4px; border-radius: 4px; }
+.orig { background: #fff7ed; color: #9a3412; padding: 1px 4px; border-radius: 4px; }
+
+/* Size Font Awesome SVG icons without relying on the CSS the script injects */
+svg.svg-inline--fa { display: inline-block; height: 1em; width: auto; overflow: visible; vertical-align: -0.125em; }
+.publication-links .icon svg { height: 1em; width: 1em; }
+
+/* Phones: stack each example so both versions stay visible, and avoid wide gaps from justified text */
+@media (max-width: 768px) {
+  .has-text-justified { text-align: left !important; }
+  table.compare thead { display: none; }
+  table.compare tr { display: block; border-bottom: 1px solid #dbdbdb; padding: 0.5rem 0; }
+  table.compare td { display: block; width: auto; border: none; padding: 0.3rem 0.25rem; }
+  table.compare td:first-child { white-space: normal; width: auto; }
+  table.compare td:nth-child(2)::before,
+  table.compare td:nth-child(3)::before {
+    display: block;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+  }
+  table.compare td:nth-child(2)::before { content: "On device"; color: #9a3412; }
+  table.compare td:nth-child(3)::before { content: "Sent to cloud"; color: #0b4aa2; }
+}
